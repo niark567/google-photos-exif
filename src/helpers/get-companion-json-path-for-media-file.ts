@@ -20,6 +20,10 @@ export function getCompanionJsonPathForMediaFile(mediaFilePath: string): string|
     `${mediaFileNameWithoutExtension}${mediaFileExtension}.json`,
   ];
 
+  if(mediaFileExtension.toLowerCase() === '.mp4') {
+    potentialJsonFileNames.push(`${mediaFileNameWithoutExtension}.HEIC.json`);
+  }
+
   // Another edge case which seems to be quite inconsistent occurs when we have media files containing a number suffix for example "foo(1).jpg"
   // In this case, we don't get "foo(1).json" nor "foo(1).jpg.json". Instead, we strangely get "foo.jpg(1).json".
   // We can use a regex to look for this edge case and add that to the potential JSON filenames to look out for
@@ -28,6 +32,35 @@ export function getCompanionJsonPathForMediaFile(mediaFilePath: string): string|
     const name = nameWithCounterMatch?.groups?.['name'];
     const counter = nameWithCounterMatch?.groups?.['counter'];
     potentialJsonFileNames.push(`${name}${mediaFileExtension}${counter}.json`);
+    if(mediaFileExtension.toLowerCase() === '.mp4') {
+      potentialJsonFileNames.push(`${name}.HEIC${counter}.json`);
+    }
+
+    // Sometimes, files combines both _n and (1)...
+    // TODO refactor : extract function and reuse
+    if(name) {
+      // Sometimes the media filename ends with extra dash (eg. filename_n-.jpg + filename_n.json)
+      const endsWithExtraDash = name.endsWith('_n-');
+
+      // Sometimes the media filename ends with extra `n` char (eg. filename_n.jpg + filename_.json)
+      const endsWithExtraNChar = name.endsWith('_n');
+      // Sometimes it's a `p` char (eg. filename_p.jpg + filename_.json)
+      const endsWithExtraPChar = name.endsWith('_p');
+
+      // And sometimes the media filename has extra underscore in it (e.g. filename_.jpg + filename.json)
+      const endsWithExtraUnderscore = name.endsWith('_');
+
+      // Sometimes the media filename ends with extra character (eg. filename1.jpg + filename.json)
+      const endsWithExtraDigit = name.match(/.*\d$/);
+
+      if (endsWithExtraDash || endsWithExtraNChar || endsWithExtraPChar || endsWithExtraUnderscore || endsWithExtraDigit) {
+        // We need to remove that extra char at the end
+        potentialJsonFileNames.push(`${name.slice(0, -1)}.json`);
+        if(mediaFileExtension.toLowerCase() === '.mp4') {
+          potentialJsonFileNames.push(`${name.slice(0, -1)}.HEIC.json`);
+        }
+      }
+    }
   }
 
   // Sometimes the media filename ends with extra dash (eg. filename_n-.jpg + filename_n.json)
@@ -35,13 +68,21 @@ export function getCompanionJsonPathForMediaFile(mediaFilePath: string): string|
 
   // Sometimes the media filename ends with extra `n` char (eg. filename_n.jpg + filename_.json)
   const endsWithExtraNChar = mediaFileNameWithoutExtension.endsWith('_n');
+  // Sometimes it's a `p` char (eg. filename_p.jpg + filename_.json)
+  const endsWithExtraPChar = mediaFileNameWithoutExtension.endsWith('_p');
 
   // And sometimes the media filename has extra underscore in it (e.g. filename_.jpg + filename.json)
   const endsWithExtraUnderscore = mediaFileNameWithoutExtension.endsWith('_');
 
-  if (endsWithExtraDash || endsWithExtraNChar || endsWithExtraUnderscore) {
+  // Sometimes the media filename ends with extra number (eg. filename1.jpg + filename.json)
+  const endsWithExtraDigit = mediaFileNameWithoutExtension.match(/.*\d$/);
+
+  if (endsWithExtraDash || endsWithExtraNChar || endsWithExtraPChar || endsWithExtraUnderscore || endsWithExtraDigit) {
     // We need to remove that extra char at the end
     potentialJsonFileNames.push(`${mediaFileNameWithoutExtension.slice(0, -1)}.json`);
+    if(mediaFileExtension.toLowerCase() === '.mp4') {
+      potentialJsonFileNames.push(`${mediaFileNameWithoutExtension.slice(0, -1)}.HEIC.json`);
+    }
   }
 
   // Now look to see if we have a JSON file in the same directory as the image for any of the potential JSON file names
